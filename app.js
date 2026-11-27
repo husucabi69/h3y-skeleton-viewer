@@ -27,7 +27,8 @@
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
   renderer.setClearColor(0x000000, 0);
 
   var scene = new THREE.Scene();
@@ -43,16 +44,16 @@
   }
   var ambLight = new THREE.AmbientLight(0x2b3341, 0.45);
   scene.add(ambLight);
-  var keyLight = makeLight(0xfff1dc, 1.15, 0.62, 0.55);   // 따뜻한 스튜디오 키
-  var rimLight = makeLight(0xffd9a8, 0.55, Math.PI - 0.45, -0.10); // 은은한 앰버 림
-  var fillLight = makeLight(0xd4deee, 0.35, -1.30, 0.18);  // 부드러운 필
+  var keyLight = makeLight(0xfff6ea, 1.55, 0.52, 0.62);   // 중성 스튜디오 키
+  var rimLight = makeLight(0xffe8cf, 0.30, Math.PI - 0.45, -0.10); // 은은한 앰버 림
+  var fillLight = makeLight(0xdfe6f2, 0.22, -1.30, 0.18);  // 부드러운 필
   var topLight = makeLight(0x5a4a34, 0.25, 0.0, 1.15);     // 천장 바운스
   var bounceLight = makeLight(0x4a3a26, 0.30, 0.0, -0.75); // 아래 반사판
 
   var THEMES = {
     dark: {
-      amb: [0x2b3341, 0.45], key: [0xfff1dc, 1.15], rim: [0xffd9a8, 0.55],
-      fill: [0xd4deee, 0.35], top: [0x5a4a34, 0.25], bounce: [0x4a3a26, 0.30], shaderRim: 0.22
+      amb: [0x2b3341, 0.30], key: [0xfff6ea, 1.55], rim: [0xffe8cf, 0.30],
+      fill: [0xdfe6f2, 0.22], top: [0x6a5a44, 0.18], bounce: [0x4a3a26, 0.24], shaderRim: 0.16
     },
     light: {
       amb: [0xffffff, 0.38], key: [0xffffff, 1.00], rim: [0xfff6ea, 0.22],
@@ -724,6 +725,7 @@
     camera.updateProjectionMatrix();
   }
   resize();
+  window.__h3y = { renderer: renderer, scene: scene, camera: camera, S: S, THREE: THREE, camState: camState };
 
   // ---------- 렌더 루프 ----------
   function tick() {

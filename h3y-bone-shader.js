@@ -185,7 +185,7 @@ function createH3YBoneMaterial(THREE, src, options) {
     uTexMix:    { value: 0.0 },
     uDebugAO:   { value: 0.0 },
     uSheen:     { value: 0.10 },
-    uBump:      { value: 0.10 },
+    uBump:      { value: 0.80 },
     uSheenGloss:{ value: 0.55 },
     uSoftDir:   { value: new THREE.Vector3(0.495, 0.522, 0.694).normalize() },         // 텍스처 준비도 (0→1)
     uH3yAlbedoMap:    { value: h3ySolidTexture(THREE, 208, 194, 168) },
@@ -270,9 +270,10 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
   float amberSpot = smoothstep(0.76, 0.94, motC) * smoothstep(0.40, 0.62, motA);
   h3yAlb *= mix(vec3(1.0), vec3(0.88, 0.755, 0.605), amberSpot);
   // 밉맵에 사라지지 않는 초미세 그레인 — 근접/원경 모두 결이 살아 있게
-  float grainA = h3yNoise(vH3yWorld * 480.0 + 3.0) - 0.5;
-  float grainB = h3yNoise(vH3yWorld * 170.0 + 7.0) - 0.5;
-  h3yAlb *= 1.0 + 0.062 * grainA + 0.050 * grainB;
+  float grainA = h3yNoise(vH3yWorld * 720.0 + 3.0) - 0.5;
+  float grainB = h3yNoise(vH3yWorld * 330.0 + 7.0) - 0.5;
+  float grainC = h3yNoise(vH3yWorld * 150.0 + 13.0) - 0.5;
+  h3yAlb *= 1.0 + 0.055 * grainA + 0.050 * grainB + 0.045 * grainC;
   h3yAlb = mix(vec3(0.62, 0.55, 0.44), h3yAlb, uTexMix);
 } else {
   h3yAlb = mix(vec3(0.62, 0.55, 0.44), vec3(0.78, 0.70, 0.56), h3yAo);
@@ -280,9 +281,9 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
 
 if (uMode < 0.5) {
   // 깊은 틈새·봉합선: 흑갈색으로 가라앉힌다
-  float depth = pow(1.0 - h3yAo, 1.30);
-  h3yAlb = mix(h3yAlb, h3yCave(), 0.70 * depth);
-  h3yAlb = mix(h3yAlb, h3yCave(), 0.80 * pow(h3yCavity, 0.80));
+  float depth = pow(1.0 - h3yAo, 1.15);
+  h3yAlb = mix(h3yAlb, h3yCave(), 0.78 * depth);
+  h3yAlb = mix(h3yAlb, h3yCave(), 0.92 * pow(h3yCavity, 0.70));
   h3yAlb = mix(h3yAlb, h3yAmber(), 0.10 * smoothstep(0.55, 1.0, 1.0 - h3yAo));
   // 밝은 곳은 상아색으로 살짝 들어 올린다
   h3yAlb *= mix(0.90, 1.06, smoothstep(0.55, 1.0, h3yAo));
@@ -333,12 +334,14 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
 // ---- 초미세 골결 요철: 화면 미분 범프 ----
 // 픽셀이 요철보다 커지면(원경) 자연히 사라지도록 나이키스트 페이드
 {
-  float f1 = 480.0, f2 = 170.0;
+  float f1 = 720.0, f2 = 330.0, f3 = 150.0;
   float pixW = length(fwidth(vH3yWorld));
-  float fade1 = 1.0 - smoothstep(0.30 / f1, 0.85 / f1, pixW);
-  float fade2 = 1.0 - smoothstep(0.30 / f2, 0.85 / f2, pixW);
-  float hN = (h3yNoise(vH3yWorld * f1 + 3.0) - 0.5) * 0.80 * fade1
-           + (h3yNoise(vH3yWorld * f2 + 7.0) - 0.5) * 0.60 * fade2;
+  float fade1 = 1.0 - smoothstep(0.25 / f1, 0.80 / f1, pixW);
+  float fade2 = 1.0 - smoothstep(0.25 / f2, 0.80 / f2, pixW);
+  float fade3 = 1.0 - smoothstep(0.25 / f3, 0.80 / f3, pixW);
+  float hN = (h3yNoise(vH3yWorld * f1 + 3.0) - 0.5) * 0.55 * fade1
+           + (h3yNoise(vH3yWorld * f2 + 7.0) - 0.5) * 0.70 * fade2
+           + (h3yNoise(vH3yWorld * f3 + 13.0) - 0.5) * 0.85 * fade3;
   vec2 dH = clamp(vec2(dFdx(hN), dFdy(hN)) * uBump * 0.0026, vec2(-0.06), vec2(0.06));
   h3yNWp = h3yBump(-vViewPosition, h3yNWp, dH, faceDirection);
   normal = h3yBump(-vViewPosition, normal, dH, faceDirection);

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07090d">
+<title>H3Y 전신 골격 242 — 스튜디오 뷰어</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+<canvas id="c"></canvas>
+
+<div id="top">
+  <div class="tleft">
+    <div id="title">H3Y 전신 골격 <b>242</b></div>
+    <div id="sub">개별 뼈 · 임상 모듈 · 부위별 · 전신</div>
+  </div>
+  <div class="tright">
+    <div id="status"></div>
+    <div class="themeSwitch" id="themeSwitch" role="group" aria-label="스튜디오 배경">
+      <button data-theme="dark" class="on">다크</button>
+      <button data-theme="light">화이트</button>
+    </div>
+  </div>
+</div>
+
+<div id="hint">한 손가락 회전 · 두 손가락 확대/이동<br>두 번 톡: 그 위치 확대</div>
+
+<div id="loading"><div id="loadingText">불러오는 중…</div></div>
+
+<div id="panel">
+  <div class="tabs" id="tabs">
+    <button data-mode="bones" class="on">개별 뼈 <i>242</i></button>
+    <button data-mode="modules">임상 모듈 <i>62</i></button>
+    <button data-mode="regions">부위별 <i>13</i></button>
+    <button data-mode="master">전신</button>
+  </div>
+
+  <div class="row" id="filterRow">
+    <input id="q" type="search" inputmode="search" placeholder="검색 — 한글·영문 (예: 무릎, femur)" autocomplete="off">
+    <select id="regionSel" aria-label="부위 필터"></select>
+    <button id="listBtn" class="icon">목록</button>
+  </div>
+
+  <div class="navrow">
+    <button id="prev" class="nav" aria-label="이전">◀</button>
+    <div class="meta">
+      <div id="name">—</div>
+      <div id="sub2"></div>
+    </div>
+    <button id="next" class="nav" aria-label="다음">▶</button>
+  </div>
+
+  <div class="row tight" id="angleRow">
+    <button data-angle="front" class="view on">정면</button>
+    <button data-angle="side" class="view">측면</button>
+    <button data-angle="back" class="view">후면</button>
+    <button data-angle="top" class="view">위</button>
+    <button id="fitBtn" class="view">맞춤</button>
+  </div>
+
+  <div class="row tight" id="texRow">
+    <button data-tex="0">질감 끔</button>
+    <button data-tex="0.5">질감 0.5</button>
+    <button data-tex="1" class="on">질감 1.0</button>
+  </div>
+</div>
+
+<div id="sheet" class="hidden" aria-hidden="true">
+  <div class="sheetTop">
+    <input id="qs" type="search" inputmode="search" placeholder="목록 검색" autocomplete="off">
+    <button id="closeSheet">닫기</button>
+  </div>
+  <div id="sheetCount"></div>
+  <div id="list"></div>
+</div>
+
+<div id="about" class="hidden">
+  <div class="aboutBox">
+    <h3>H3Y 전신 골격 242 — 스튜디오 뷰어</h3>
+    <p>개별 뼈 242개 · 임상 모듈 62개 · 부위별 13개 · 전신(경량) 마스터 1개를 한 링크에서 확인하는 검수용 뷰어입니다. H3Y ANATOMY STUDIO 3.0.0 (Loop 세분화 UHD) 패키지 원본을 그대로 서빙합니다.</p>
+    <p><b>스튜디오</b> — <b>다크</b>는 깊은 검정 배경에 따뜻한 키라이트·앰버 림라이트(두판상근 도판의 블랙 테마), <b>화이트</b>는 밝은 배경에 소프트박스 조명입니다. 우측 상단 버튼으로 바꿉니다.</p>
+    <p><b>조작</b> — 한 손가락 회전(관성) · 두 손가락 확대+이동 · 두 번 톡 확대 · 버튼으로 정면/측면/후면/위</p>
+    <p><b>질감</b> — 끔/0.5/1.0 은 피질골 셰이더의 품질 단계입니다. 저사양 기기에서는 끔을 쓰세요.</p>
+    <p class="attr">BodyParts3D, © The Database Center for Life Science, licensed under CC BY 4.0. Adaptation for H3Y Anatomy Studio, full-skeleton 3.0.0.</p>
+    <button id="closeAbout">닫기</button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/GLTFLoader.js"></script>
+<script src="h3y-bone-shader.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

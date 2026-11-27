@@ -28,7 +28,7 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.95;
+  renderer.toneMappingExposure = 1.03;
   renderer.setClearColor(0x000000, 0);
 
   var scene = new THREE.Scene();

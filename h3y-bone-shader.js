@@ -185,8 +185,8 @@ function createH3YBoneMaterial(THREE, src, options) {
     uNrmGain:   { value: 1.6 },
     uTexMix:    { value: 0.0 },
     uDebugAO:   { value: 0.0 },
-    uSheen:     { value: 0.10 },
-    uBump:      { value: 0.30 },
+    uSheen:     { value: 0.06 },
+    uBump:      { value: 0.22 },
     uSheenGloss:{ value: 0.55 },
     uSoftDir:   { value: new THREE.Vector3(0.495, 0.522, 0.694).normalize() },         // 텍스처 준비도 (0→1)
     uH3yAlbedoMap:    { value: h3ySolidTexture(THREE, 208, 194, 168) },
@@ -270,8 +270,11 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
   float amberSpot = smoothstep(0.76, 0.94, motC) * smoothstep(0.40, 0.62, motA);
   h3yAlb *= mix(vec3(1.0), vec3(0.88, 0.755, 0.605), amberSpot);
   // 밉맵에 사라지지 않는 초미세 결 — 범프와 같은 노이즈를 재사용한다(비용 절감)
+  vec3 h3yP2 = vec3(vH3yWorld.x * 0.83 + vH3yWorld.z * 0.56,
+                   vH3yWorld.y * 1.07 - vH3yWorld.z * 0.31,
+                   vH3yWorld.z * 0.79 - vH3yWorld.x * 0.62);
   h3yN1 = h3yNoise(vH3yWorld * 330.0 + 7.0) - 0.5;
-  h3yN2 = h3yNoise(vH3yWorld * 150.0 + 13.0) - 0.5;
+  h3yN2 = h3yNoise(h3yP2 * 158.0 + 13.0) - 0.5;
   h3yAlb *= 1.0 + 0.085 * h3yN1 + 0.075 * h3yN2;
   h3yAlb = mix(vec3(0.62, 0.55, 0.44), h3yAlb, uTexMix);
 } else {
@@ -307,7 +310,7 @@ if (uMode < 0.5) {
     rm = mix(0.452, rm, uTexMix);
   }
   // 기공·틈새는 조금 더 거칠게(반광이 죽고 음영이 남는다)
-  roughnessFactor = clamp(rm + 0.085 + 0.06 * h3yCavityG + 0.02 * (1.0 - h3yAoNear), 0.48, 0.78);
+  roughnessFactor = clamp(rm + 0.17 + 0.06 * h3yCavityG + 0.02 * (1.0 - h3yAoNear), 0.52, 0.82);
 } else if (uMode < 1.5) {
   roughnessFactor = clamp(0.30 + 0.05 * h3yCavityG, 0.24, 0.40);
 } else {

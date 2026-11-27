@@ -55,8 +55,8 @@
       fill: [0xd4deee, 0.35], top: [0x5a4a34, 0.25], bounce: [0x4a3a26, 0.30], shaderRim: 0.22
     },
     light: {
-      amb: [0xffffff, 0.52], key: [0xffffff, 0.92], rim: [0xfff6ea, 0.20],
-      fill: [0xeef3ff, 0.55], top: [0xffffff, 0.34], bounce: [0xffffff, 0.18], shaderRim: 0.10
+      amb: [0xffffff, 0.38], key: [0xffffff, 1.00], rim: [0xfff6ea, 0.22],
+      fill: [0xeef3ff, 0.42], top: [0xffffff, 0.30], bounce: [0xffffff, 0.16], shaderRim: 0.12
     }
   };
   var themeName = 'dark';

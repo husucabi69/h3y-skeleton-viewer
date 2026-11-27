@@ -147,10 +147,15 @@ float h3yMicro = uQuality > 0.0 ? h3yNoise(vH3yWorld * 215.0) : 0.5;
 h3yPoreG = h3yPore;
 
 if (uMode < 0.5) {
+  // 뼈 축을 따라 흐르는 아주 옅은 종축 결 (점토처럼 보이지 않게 하는 최소한의 방향성)
+  float h3yGrainStreak = uQuality > 0.5
+    ? h3yNoise(vec3(vH3yWorld.x * 1180.0, vH3yWorld.y * 130.0, vH3yWorld.z * 1180.0))
+    : 0.5;
   vec3 albedo = h3yIvory(h3yTone);
-  albedo *= 1.0 + 0.030 * (h3yMicro - 0.5) + 0.022 * (h3yFine - 0.5) - 0.075 * h3yPore;
+  albedo *= 1.0 + 0.030 * (h3yMicro - 0.5) + 0.022 * (h3yFine - 0.5)
+              + 0.022 * (h3yGrainStreak - 0.5) - 0.075 * h3yPore;
   // 봉합선·구멍(영양공)은 짙은 갈색으로 스며들게
-  albedo = mix(albedo, h3yToLinear(vec3(0.180, 0.129, 0.078)), 0.42 * h3yCavity);
+  albedo = mix(albedo, h3yToLinear(vec3(0.180, 0.129, 0.078)), 0.52 * h3yCavity);
   diffuseColor.rgb = albedo;
 } else if (uMode < 1.5) {
   vec3 albedo = h3yEnamelTone(h3yTone);
@@ -184,7 +189,7 @@ if (uMode < 0.5) {
                      h3yNoise((vH3yWorld + vec3(0.0, e, 0.0)) * 620.0) - h0,
                      h3yNoise((vH3yWorld + vec3(0.0, 0.0, e)) * 620.0) - h0) / e;
     vec3 bump = grad - nW * dot(grad, nW);
-    vec3 nPert = normalize(nW - bump * 0.000016 * (1.0 - 0.55 * h3yCavity));
+    vec3 nPert = normalize(nW - bump * 0.000026 * (1.0 - 0.55 * h3yCavity));
     normal = normalize(mat3(viewMatrix) * nPert);
   } else {
     normal = normalize(mat3(viewMatrix) * nW);

@@ -15,7 +15,9 @@
  *  · UV 가 없는 BodyParts3D 메쉬 → 월드 좌표 3축 Tri-planar 샘플링.
  *    이음새 0. 알베도는 2스케일 혼합으로 반복 타일감을 지운다.
  *  · GLB 의 COLOR_0 (R 근접차폐 / G 원거리차폐 / B 함몰) 을 깊고 따뜻한
- *    흑갈색(#1b1209)~호박색 음영으로 곱해 두개골 아래·관절 틈을 가라앉힌다.
+ *    갈색~호박색 음영으로 곱해 두개골 아래·관절 틈을 가라앉힌다.
+ *  · v3a2 (2026-11-27 의장님 #16062): 경추·요추 화면의 검은 먹물 자국 제거 —
+ *    뒷면 법선 반전(gl_FrontFacing), AO 바닥 0.18, 함몰·틈새 혼합 강도 하향.
  *  · 노멀은 접선공간 노멀을 월드 접선평면에 사영해 합성(tangent-free) →
  *    잔잔한 골 표면 요철과 촉촉한 실물 반광.
  *  · roughness 0.32~0.58 + Fresnel 실루엣 림.
@@ -50,8 +52,8 @@ float h3yNoise(vec3 x){
 
 const H3Y_SURFACE_GLSL = `
 vec3 h3yToLinear(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
-// 깊은 틈새 — 흑갈색 ~ 갈색
-vec3 h3yCave(){ return h3yToLinear(vec3(0.106, 0.071, 0.035)); }   // #1b1209
+// 깊은 틈새 — 따뜻한 짙은 갈색 (먹물 자국 방지: 순흑에 가까운 #1b1209 에서 완화)
+vec3 h3yCave(){ return h3yToLinear(vec3(0.16, 0.11, 0.065)); }    // 짙은 갈색
 vec3 h3yAmber(){ return h3yToLinear(vec3(0.353, 0.243, 0.122)); }  // #5a3e1f
 
 // 접선공간 노멀(0..1 텍스처) → 월드 기울기 벡터.
@@ -248,9 +250,13 @@ float h3yAoNear = clamp(vH3yAO.r, 0.0, 1.0);
 float h3yAoFar  = clamp(vH3yAO.g, 0.0, 1.0);
 float h3yCavity = clamp(vH3yAO.b, 0.0, 1.0);
 float h3yAo = mix(h3yAoNear, h3yAoNear * h3yAoFar, 0.55);
+// 얇은 뼈판·모서리에서 AO 가 0 으로 떨어져 검게 죽는 것을 막는다(바닥 0.18)
+h3yAo = clamp(h3yAo, 0.18, 1.0);
 h3yCavityG = h3yCavity;
 
 vec3 h3yNw = normalize(vH3yNormalW);
+// 뒷면(DoubleSide)은 법선을 뒤집어야 라이팅·림이 뒤집혀 검게 보이지 않는다
+if (!gl_FrontFacing) h3yNw = -h3yNw;
 vec3 h3yBw = pow(abs(h3yNw), vec3(3.0));
 h3yBw /= max(dot(h3yBw, vec3(1.0)), 1e-4);
 h3yTriBlendX = h3yBw.x; h3yTriBlendY = h3yBw.y; h3yTriBlendZ = h3yBw.z;
@@ -282,10 +288,10 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
 }
 
 if (uMode < 0.5) {
-  // 깊은 틈새·봉합선: 흑갈색으로 가라앉힌다
+  // 깊은 틈새·봉합선: 따뜻한 갈색으로 가라앉힌다(경추·요추 모서리의 시커먼 얼룩 방지)
   float depth = pow(1.0 - h3yAo, 1.15);
-  h3yAlb = mix(h3yAlb, h3yCave(), 0.78 * depth);
-  h3yAlb = mix(h3yAlb, h3yCave(), 0.92 * pow(h3yCavity, 0.70));
+  h3yAlb = mix(h3yAlb, h3yCave(), 0.48 * depth);
+  h3yAlb = mix(h3yAlb, h3yCave(), 0.38 * pow(h3yCavity, 1.5));
   h3yAlb = mix(h3yAlb, h3yAmber(), 0.10 * smoothstep(0.55, 1.0, 1.0 - h3yAo));
   // 밝은 곳은 상아색으로 살짝 들어 올린다
   h3yAlb *= mix(0.90, 1.06, smoothstep(0.55, 1.0, h3yAo));

@@ -236,6 +236,8 @@ float h3yTriBlendX;
 float h3yTriBlendY;
 float h3yTriBlendZ;
 float h3yCavityG;
+float h3yN1;
+float h3yN2;
 vec3 h3yNWp;
 ${H3Y_NOISE_GLSL}
 ${H3Y_SURFACE_GLSL}`)
@@ -255,10 +257,7 @@ h3yTriBlendX = h3yBw.x; h3yTriBlendY = h3yBw.y; h3yTriBlendZ = h3yBw.z;
 vec3 h3yAlb;
 if (uQuality > 0.05 && uTexMix > 0.01) {
   // 1차 스케일(16 cm) + 2차 스케일(약 24 cm) 혼합 → 타일 반복감 제거
-  vec3 a1 = h3yTriAlbedo(vH3yWorld, h3yBw, uAlbScale);
-  vec3 a2 = h3yTriAlbedo(vH3yWorld + vec3(0.371, 0.213, 0.527), h3yBw, uAlbScale * 1.53);
-  float wmix = h3yNoise(vH3yWorld * 2.2);
-  h3yAlb = mix(a1, a2, mix(0.28, 0.62, wmix));
+  h3yAlb = h3yTriAlbedo(vH3yWorld, h3yBw, uAlbScale);
   // 큰 유기적 얼룩(3~15 cm)은 3D 노이즈로 — 타일 반복 없이 실물 표본의 얼룩을 만든다
   float motA = h3yNoise(vH3yWorld * 5.5 + 17.3);
   float motB = h3yNoise(vH3yWorld * 14.0 + 3.1);
@@ -269,11 +268,10 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
   // 드문 호박색 반점
   float amberSpot = smoothstep(0.76, 0.94, motC) * smoothstep(0.40, 0.62, motA);
   h3yAlb *= mix(vec3(1.0), vec3(0.88, 0.755, 0.605), amberSpot);
-  // 밉맵에 사라지지 않는 초미세 그레인 — 근접/원경 모두 결이 살아 있게
-  float grainA = h3yNoise(vH3yWorld * 720.0 + 3.0) - 0.5;
-  float grainB = h3yNoise(vH3yWorld * 330.0 + 7.0) - 0.5;
-  float grainC = h3yNoise(vH3yWorld * 150.0 + 13.0) - 0.5;
-  h3yAlb *= 1.0 + 0.055 * grainA + 0.050 * grainB + 0.045 * grainC;
+  // 밉맵에 사라지지 않는 초미세 결 — 범프와 같은 노이즈를 재사용한다(비용 절감)
+  h3yN1 = h3yNoise(vH3yWorld * 330.0 + 7.0) - 0.5;
+  h3yN2 = h3yNoise(vH3yWorld * 150.0 + 13.0) - 0.5;
+  h3yAlb *= 1.0 + 0.085 * h3yN1 + 0.075 * h3yN2;
   h3yAlb = mix(vec3(0.62, 0.55, 0.44), h3yAlb, uTexMix);
 } else {
   h3yAlb = mix(vec3(0.62, 0.55, 0.44), vec3(0.78, 0.70, 0.56), h3yAo);
@@ -334,14 +332,11 @@ if (uQuality > 0.05 && uTexMix > 0.01) {
 // ---- 초미세 골결 요철: 화면 미분 범프 ----
 // 픽셀이 요철보다 커지면(원경) 자연히 사라지도록 나이키스트 페이드
 {
-  float f1 = 720.0, f2 = 330.0, f3 = 150.0;
+  float f1 = 330.0, f2 = 150.0;
   float pixW = length(fwidth(vH3yWorld));
-  float fade1 = 1.0 - smoothstep(0.25 / f1, 0.80 / f1, pixW);
-  float fade2 = 1.0 - smoothstep(0.25 / f2, 0.80 / f2, pixW);
-  float fade3 = 1.0 - smoothstep(0.25 / f3, 0.80 / f3, pixW);
-  float hN = (h3yNoise(vH3yWorld * f1 + 3.0) - 0.5) * 0.55 * fade1
-           + (h3yNoise(vH3yWorld * f2 + 7.0) - 0.5) * 0.70 * fade2
-           + (h3yNoise(vH3yWorld * f3 + 13.0) - 0.5) * 0.85 * fade3;
+  float fade1 = 1.0 - smoothstep(0.30 / f1, 0.90 / f1, pixW);
+  float fade2 = 1.0 - smoothstep(0.30 / f2, 0.90 / f2, pixW);
+  float hN = h3yN1 * 1.10 * fade1 + h3yN2 * 0.95 * fade2;
   vec2 dH = clamp(vec2(dFdx(hN), dFdy(hN)) * uBump * 0.0026, vec2(-0.06), vec2(0.06));
   h3yNWp = h3yBump(-vViewPosition, h3yNWp, dH, faceDirection);
   normal = h3yBump(-vViewPosition, normal, dH, faceDirection);

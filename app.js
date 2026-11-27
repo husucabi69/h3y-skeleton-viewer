@@ -137,7 +137,8 @@
     // 하단 패널·상단 바를 뺀 "실제로 보이는 영역" 기준으로 프레이밍한다.
     var vh = window.innerHeight || 1;
     var panelEl = $('panel');
-    var panelH = (panelEl && panelEl.offsetParent !== null) ? panelEl.offsetHeight + 18 : 0;
+    var panelRect = panelEl ? panelEl.getBoundingClientRect() : null;
+    var panelH = panelRect ? panelRect.height + 18 : 0;
     var topH = 58;
     var effH = Math.max(vh - panelH - topH, vh * 0.42);
     var vfovFull = THREE.MathUtils.degToRad(camera.fov);

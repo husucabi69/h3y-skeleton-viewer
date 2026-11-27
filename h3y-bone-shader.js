@@ -148,7 +148,7 @@ h3yPoreG = h3yPore;
 
 if (uMode < 0.5) {
   vec3 albedo = h3yIvory(h3yTone);
-  albedo *= 1.0 + 0.028 * (h3yMicro - 0.5) + 0.020 * (h3yFine - 0.5) - 0.055 * h3yPore;
+  albedo *= 1.0 + 0.030 * (h3yMicro - 0.5) + 0.022 * (h3yFine - 0.5) - 0.075 * h3yPore;
   // 봉합선·구멍(영양공)은 짙은 갈색으로 스며들게
   albedo = mix(albedo, h3yToLinear(vec3(0.180, 0.129, 0.078)), 0.42 * h3yCavity);
   diffuseColor.rgb = albedo;

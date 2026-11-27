@@ -110,6 +110,15 @@
   };
   var fitR = 0.5, minDist = 0.05, maxDist = 5;
 
+  function screenUpVec(yaw, pitch) {
+    // 카메라가 보는 방향에 대한 화면 "위" 축(월드). 패널을 피해 대상을 화면 위쪽에 앉힌다.
+    var f = new THREE.Vector3(-Math.cos(pitch) * Math.sin(yaw), -Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)).normalize();
+    var right = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0));
+    if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
+    right.normalize();
+    return new THREE.Vector3().crossVectors(right, f).normalize();
+  }
+
   function fit(instant) {
     holder.updateMatrixWorld(true);
     var box = new THREE.Box3().setFromObject(holder);
@@ -125,10 +134,20 @@
     var center = new THREE.Vector3();
     box.getCenter(center);
 
-    var vfov = THREE.MathUtils.degToRad(camera.fov);
-    var hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
-    var fovMin = Math.min(vfov, hfov);
-    var d = fitR / Math.sin(fovMin / 2) * 1.08;
+    // 하단 패널·상단 바를 뺀 "실제로 보이는 영역" 기준으로 프레이밍한다.
+    var vh = window.innerHeight || 1;
+    var panelEl = $('panel');
+    var panelH = (panelEl && panelEl.offsetParent !== null) ? panelEl.offsetHeight + 18 : 0;
+    var topH = 58;
+    var effH = Math.max(vh - panelH - topH, vh * 0.42);
+    var vfovFull = THREE.MathUtils.degToRad(camera.fov);
+    var vfovEff = 2 * Math.atan(Math.tan(vfovFull / 2) * effH / vh);
+    var hfov = 2 * Math.atan(Math.tan(vfovFull / 2) * camera.aspect);
+    var fovMin = Math.min(vfovEff, hfov);
+    var d = fitR / Math.sin(fovMin / 2) * 1.06;
+
+    var pxToWorld = (2 * d * Math.tan(vfovFull / 2)) / vh;
+    center.addScaledVector(screenUpVec(camState.tYaw, camState.tPitch), (topH - panelH) / 2 * pxToWorld);
 
     minDist = fitR * 0.12;
     maxDist = fitR * 9;
@@ -255,7 +274,7 @@
     S.pickedBone = null;
     vYaw = 0; vPitch = 0;
     window.clearTimeout(pressTimer);
-    showLoading(true, '불러오는 중…');
+    showLoading(item.bytes > 12000000, '불러오는 중…');
     statusEl.textContent = '불러오는 중…';
     nameEl.textContent = item.ko;
     sub2El.textContent = metaLine(item);

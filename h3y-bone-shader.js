@@ -185,7 +185,7 @@ function createH3YBoneMaterial(THREE, src, options) {
     uTexMix:    { value: 0.0 },
     uDebugAO:   { value: 0.0 },
     uSheen:     { value: 0.10 },
-    uBump:      { value: 0.80 },
+    uBump:      { value: 0.30 },
     uSheenGloss:{ value: 0.55 },
     uSoftDir:   { value: new THREE.Vector3(0.495, 0.522, 0.694).normalize() },         // 텍스처 준비도 (0→1)
     uH3yAlbedoMap:    { value: h3ySolidTexture(THREE, 208, 194, 168) },

@@ -25,10 +25,11 @@
  *   api.setQuality(0 | 0.5 | 1);   api.setRim(0.2);   api.setTextureRoot('assets/tex');
  */
 
+const H3Y_TEX_VERSION = 'v3a1';
 const H3Y_TEX_FILES = {
-  albedo: 'bone_albedo.jpg',
-  normal: 'bone_normal.png',
-  roughness: 'bone_roughness.jpg'
+  albedo: 'bone_albedo.jpg?v=' + H3Y_TEX_VERSION,
+  normal: 'bone_normal.png?v=' + H3Y_TEX_VERSION,
+  roughness: 'bone_roughness.jpg?v=' + H3Y_TEX_VERSION
 };
 
 const H3Y_NOISE_GLSL = `

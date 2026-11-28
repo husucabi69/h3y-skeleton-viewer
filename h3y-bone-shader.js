@@ -108,6 +108,14 @@ float h3yTriRough(vec3 p, vec3 bw, float s){
   return r;
 }
 
+// ───────────────── v4.1 조직 표면 (모자이크 제거) ─────────────────
+// 화면 해상도보다 촘촘해진 절차 패턴은 평균값 쪽으로 흐려, 뱀가죽 체크무늬·
+// 지글거림(모아레) 없이 매끈한 섬유 표면만 남긴다.  1 = 또렷, 0 = 평균.
+float h3yAA(float phase){
+  float c = abs(fwidth(phase)) * 0.15915494;    // 주기/픽셀
+  return 1.0 - smoothstep(0.13, 0.38, c);
+}
+
 // ───────────────────────── 디스크(섬유륜) ─────────────────────────
 // 캡: t = 반경(0 수핵 → 1 외연), a = 각도.  벽: t = 축방향(0 아래 → 1 위).
 struct H3yDisc {
@@ -122,59 +130,58 @@ H3yDisc h3yDiscSample(vec2 uv, float wall){
   float t = uv.x;
   float a = uv.y * 6.2831853;      // 각도(rad)
   H3yDisc d;
+  float outer = 0.42;              // 수핵 경계
 
-  // --- 층(lamella) 구조
-  float NL = 14.0;
-  float outer = 0.44;                       // 수핵 경계
+  // ── 섬유륜 12층 — 부드러운 동심원 띠, 층마다 밝기만 살짝 다르게
   float u = clamp((t - outer) / (1.0 - outer), 0.0, 1.0);
+  float NL = 12.0;
   float layerF = u * NL;
-  float layer = floor(layerF);
-  float w = layerF - layer;                 // 층 안 위치 0..1
-  float sgn = mod(layer, 2.0) * 2.0 - 1.0;  // 층마다 섬유 방향 교차
-  float tone = 0.5 + 0.5 * sin(layer * 2.399963);   // 층별 밝기 차
+  float tone = 0.5 + 0.5 * sin(floor(layerF) * 2.399963);
+  float lamPh = 6.2831853 * layerF;
+  float lamAA = h3yAA(lamPh);
+  float lam = 0.5 + 0.5 * cos(lamPh);
+  float ring = mix(0.68, 0.40 + 0.60 * lam, lamAA);
 
-  // 층 경계 틈 (동심원 띠)
-  float seam = smoothstep(0.0, 0.10, w) * smoothstep(0.0, 0.10, 1.0 - w);
+  // ── 층마다 방향이 뒤집히는 사선 다발(둘레 9다발) — 위상차를 매끄럽게
+  float slant = 1.15 * sin(3.14159265 * layerF);
+  float fibPh = 6.2831853 * a * 9.0 + slant;
+  float fibAA = h3yAA(fibPh);
+  float fib = 0.5 + 0.5 * sin(fibPh);
+  fib = mix(0.5, fib, fibAA);
 
-  // 층 안 사선 콜라겐 다발 (층마다 ±35° 교차)
-  float fib = sin(6.2831853 * (a * 12.0 + sgn * w * 3.0));
-  fib = smoothstep(-0.35, 0.75, fib);
-  // 다발 사이 잔결
-  float fine = sin(6.2831853 * (a * 16.0 + sgn * w * 3.0));
+  // ── 수핵 중심 — UV 특이점(별 모양)이 보이지 않게 패턴을 감춘다
+  float pat = smoothstep(0.12, 0.44, t);
+  ring = mix(1.0, ring, pat);
+  fib = mix(0.5, fib, pat);
 
-  // 벽: 축방향 층 경계 + 사선 다발
-  float wallBand = 0.0;
+  // ── 수핵 — 반경 그라데이션만, 고주파 없음
+  float nuc = 1.0 - smoothstep(outer - 0.10, outer + 0.05, t);
+  vec3 np = mix(vec3(0.520, 0.480, 0.410), vec3(0.690, 0.662, 0.588),
+                smoothstep(0.0, outer, t));
+
   if (wall > 0.5) {
-    float sb = t;                             // 축 0..1
-    float NB2 = 6.0;                          // 벽면에 보이는 층 경계 수
-    wallBand = smoothstep(0.04, 0.22, fract(sb * NB2)) * smoothstep(0.04, 0.22, 1.0 - fract(sb * NB2));
-    fib = sin(6.2831853 * (a * 12.0 + sgn * sb * 2.2 + sb * 4.0));
-    fib = smoothstep(-0.35, 0.75, fib);
-    fine = sin(6.2831853 * (a * 16.0 + sb * 4.0));
-    seam = mix(0.55, 1.0, wallBand);
+    // 벽면: 축방향 6개 층 띠 + 완만한 사선 섬유 (캡보다 한 단계 밝게)
+    float sb = t;
+    float bandPh = 6.2831853 * sb * 6.0;
+    float bandAA = h3yAA(bandPh);
+    float band = 0.5 + 0.5 * cos(bandPh);
+    ring = mix(0.84, 0.62 + 0.38 * band, bandAA);
+    float wfPh = 6.2831853 * a * 9.0 + 2.0 * sin(6.2831853 * sb * 3.0);
+    float wfAA = h3yAA(wfPh);
+    fib = mix(0.5, 0.5 + 0.5 * sin(wfPh), wfAA);
+    nuc = 0.0;
   }
 
-  // 수핵: 젤리 + 방사 미세결
-  float nuc = 1.0 - smoothstep(outer - 0.12, outer + 0.06, t);
-  float nucFib = sin(6.2831853 * (a * 13.0 + t * 3.0)) * 0.5 + 0.5;
-
-  // 알베도 (섬유륜: 푸른기 도는 상아색 / 수핵: 연한 황갈색 반투명)
-  vec3 ann = mix(vec3(0.520, 0.505, 0.470), vec3(0.780, 0.768, 0.730), 0.35 + 0.65 * tone);
-  ann *= mix(0.80, 1.0, seam);                       // 층 틈 어둡게(동심원 층)
-  ann *= mix(0.92, 1.06, fib);                       // 다발 마루 밝게
-  ann *= mix(0.97, 1.02, fine * 0.5 + 0.5);
-  vec3 np = mix(vec3(0.560, 0.525, 0.460), vec3(0.700, 0.678, 0.615), nucFib * 0.6 + 0.4);
+  vec3 ann = mix(vec3(0.505, 0.492, 0.458), vec3(0.762, 0.748, 0.710),
+                 0.32 + 0.58 * tone);
+  ann *= mix(0.875, 1.0, ring);       // 층 사이 틈 — 은은한 동심원 음영
+  ann *= mix(0.972, 1.028, fib);      // 다발 마루/골
+  if (wall > 0.5) ann *= 1.10;        // 벽면은 캡보다 살짝 밝게(어둡게 죽지 않도록)
   d.alb = mix(ann, np, clamp(nuc, 0.0, 1.0));
-  if (wall > 0.5) d.alb = mix(d.alb, d.alb * 1.03, wallBand);
-
-  // 거칠기 — 층 틈과 수핵은 더 거칠고, 다발 마루는 젖은 광택
-  d.rough = mix(0.42, 0.24, fib) + 0.14 * (1.0 - seam) + 0.06 * nuc;
-
-  // 높이장 (범프)
-  d.h = (fib - 0.5) * 0.60 + (fine - 0.5) * 0.10 + (1.0 - seam) * -1.0 + nuc * 0.10;
-
-  d.sheen = 0.16;
-  d.sss = 0.35 + 0.25 * nuc;
+  d.rough = clamp(mix(0.415, 0.315, fib) - 0.035 * ring + 0.03 * nuc, 0.28, 0.46);
+  d.h = (ring - 0.68) * 0.30 + (fib - 0.5) * 0.20 + nuc * 0.05;
+  d.sheen = 0.15;
+  d.sss = 0.32 + 0.22 * nuc;
   return d;
 }
 
@@ -191,47 +198,66 @@ H3yLig h3yLigSample(vec2 uv){
   float t = uv.x;              // 폭 0..1
   float s = uv.y;              // 길이 0..1
   H3yLig L;
-  float NF = 11.0;
-  float b = t * NF;
-  float bundle = floor(b);
-  float w = b - bundle;
-  // 다발 사이 틈
-  float gap = smoothstep(0.0, 0.13, w) * smoothstep(0.0, 0.13, 1.0 - w);
-  // 다발 내부 세로 미세결 (길이방향) + 주름(crimp)
-  float crimp = sin(6.2831853 * (s * 22.0 + sin(t * 34.0) * 0.35));
-  float stri = sin(6.2831853 * (t * 210.0 + s * 3.0));
-  float tone = 0.5 + 0.5 * sin(bundle * 2.399963);
 
-  vec3 ivory = mix(vec3(0.700, 0.665, 0.600), vec3(0.930, 0.905, 0.850), 0.45 + 0.55 * tone);
-  ivory *= mix(0.80, 1.05, gap);                     // 다발 틈 어둡게
-  ivory *= mix(0.94, 1.05, crimp * 0.5 + 0.5);
-  ivory *= mix(0.97, 1.03, stri * 0.5 + 0.5);
-  // 부착부(양끝)는 섬유연골로 누렇게
-  float ends = smoothstep(0.10, 0.0, s) + smoothstep(0.90, 1.0, s);
-  ivory = mix(ivory, vec3(0.760, 0.690, 0.545), clamp(ends, 0.0, 1.0) * 0.65);
+  // ── 콜라겐 다발(fascicle) 7개 — 폭 방향 부드러운 코사인 결
+  float NF = 7.0;
+  float b = t * NF;
+  float gapPh = 6.2831853 * b;
+  float gapAA = h3yAA(gapPh);
+  float gap = 0.5 + 0.5 * cos(gapPh);          // 1 = 다발 한가운데
+  gap = mix(0.60, gap, gapAA);
+  float tone = 0.5 + 0.5 * sin(floor(b) * 2.399963);
+
+  // ── 길이 방향 주름(crimp) — 아주 완만한 저주파
+  float crimpPh = 6.2831853 * (s * 5.0 + sin(t * 5.0) * 0.18);
+  float crimpAA = h3yAA(crimpPh);
+  float crimp = 0.5 + 0.5 * sin(crimpPh);
+  crimp = mix(0.5, crimp, crimpAA);
+
+  // ── 다발 속 잔섬유 — 가까이서만 또렷하고 멀면 스스로 사라진다(AA)
+  float finePh = 6.2831853 * (t * 26.0 + s * 0.7);
+  float fineAA = h3yAA(finePh);
+  float fine = 0.5 + 0.5 * sin(finePh);
+  fine = mix(0.5, fine, fineAA);
+
+  // ── 진주빛 상아-백색 (#dfd5c5 ~ #efeae0)
+  vec3 ivory = mix(vec3(0.875, 0.835, 0.773), vec3(0.937, 0.917, 0.878),
+                   0.30 + 0.55 * tone);
+  ivory *= mix(0.915, 1.025, gap);             // 다발 사이 골
+  ivory *= mix(0.978, 1.018, crimp);           // 주름
+  ivory *= mix(0.982, 1.018, fine);            // 잔섬유
+  // 부착부(양끝 12%)는 섬유연골로 누렇게
+  float ends = smoothstep(0.12, 0.0, s) + smoothstep(0.88, 1.0, s);
+  ivory = mix(ivory, vec3(0.780, 0.712, 0.575), clamp(ends, 0.0, 1.0) * 0.55);
   L.alb = ivory;
-  L.rough = mix(0.30, 0.46, 1.0 - gap) + 0.06 * ends;
-  L.h = (gap - 0.55) * 0.9 + (crimp - 0.5) * 0.22 + (stri - 0.5) * 0.10;
-  L.sheen = 0.40;
+  L.rough = mix(0.475, 0.355, gap) + 0.05 * ends;
+  L.h = (gap - 0.60) * 0.40 + (crimp - 0.5) * 0.16 + (fine - 0.5) * 0.10;
+  L.sheen = 0.38;
   L.sss = 0.85;
   return L;
 }
 
 // ───────────────────────── 반월상연골 ─────────────────────────
 H3yLig h3yMenSample(vec2 uv){
-  float t = uv.x;              // 폭(외연 → 내연)
+  float t = uv.x;              // 폭(바깥 테두리 → 안쪽 끝)
   float s = uv.y;              // 원주
   H3yLig L;
-  float circ = sin(6.2831853 * (s * 46.0 + t * 1.6));
-  float radial = sin(6.2831853 * (t * 26.0 + s * 4.0));
-  float tone = mix(0.55, 0.85, t);
-  vec3 c = mix(vec3(0.700, 0.680, 0.610), vec3(0.880, 0.860, 0.790), tone);
-  c *= mix(0.92, 1.04, circ * 0.5 + 0.5);
-  c *= mix(0.95, 1.04, radial * 0.5 + 0.5);
+  float circPh = 6.2831853 * s * 22.0;
+  float circAA = h3yAA(circPh);
+  float circ = 0.5 + 0.5 * sin(circPh);
+  circ = mix(0.5, circ, circAA);
+  float radPh = 6.2831853 * t * 7.0;
+  float radAA = h3yAA(radPh);
+  float rad = 0.5 + 0.5 * sin(radPh);
+  rad = mix(0.5, rad, radAA);
+  vec3 c = mix(vec3(0.700, 0.680, 0.612), vec3(0.878, 0.858, 0.792),
+               mix(0.35, 0.85, t));
+  c *= mix(0.965, 1.028, circ);
+  c *= mix(0.992, 1.008, rad);        // 방사 결은 아주 옅게 — 격자(체크) 방지
   L.alb = c;
-  L.rough = 0.48 + 0.08 * (1.0 - t);
-  L.h = (circ - 0.5) * 0.35 + (radial - 0.5) * 0.25;
-  L.sheen = 0.20;
+  L.rough = 0.505 - 0.06 * t;
+  L.h = (circ - 0.5) * 0.20 + (rad - 0.5) * 0.035;
+  L.sheen = 0.18;
   L.sss = 0.55;
   return L;
 }`;
@@ -390,6 +416,7 @@ float h3yEpiph;
 float h3yTissueH;
 float h3yTissueSss;
 float h3yTissueSheen;
+float h3yTissueRough;
 vec3 h3yNWp;
 ${H3Y_NOISE_GLSL}
 ${H3Y_SURFACE_GLSL}`)
@@ -425,18 +452,21 @@ if (uMode > 2.5) {
     h3yTissueH = d.h;
     h3yTissueSss = d.sss;
     h3yTissueSheen = d.sheen;
+    h3yTissueRough = d.rough;
   } else if (uMode < 4.5) {
     H3yLig l = h3yLigSample(vH3yUv);
     h3yAlb = l.alb;
     h3yTissueH = l.h;
     h3yTissueSss = l.sss;
     h3yTissueSheen = l.sheen;
+    h3yTissueRough = l.rough;
   } else {
     H3yLig m = h3yMenSample(vH3yUv);
     h3yAlb = m.alb;
     h3yTissueH = m.h;
     h3yTissueSss = m.sss;
     h3yTissueSheen = m.sheen;
+    h3yTissueRough = m.rough;
   }
   h3yAlb = pow(h3yAlb, vec3(2.2));        // sRGB → linear
   float occl = mix(0.42, 1.0, h3yAo) * mix(0.72, 1.0, h3yCavity);
@@ -496,21 +526,8 @@ if (uDebugAO > 0.5) diffuseColor.rgb = vec3(h3yAoNear, h3yAoFar, h3yCavity);`)
       .replace('#include <roughnessmap_fragment>', `
 float roughnessFactor = 0.46;
 if (uMode > 2.5) {
-  if (uMode < 3.5) {
-    float t = vH3yUv.x, a = vH3yUv.y;
-    float fib = sin(6.2831853 * (a * 12.0 + t * 3.0)) * 0.5 + 0.5;
-    float u = clamp((t - 0.44) / 0.56, 0.0, 1.0);
-    float w = fract(u * 14.0);
-    float seam = smoothstep(0.0, 0.10, w) * smoothstep(0.0, 0.10, 1.0 - w);
-    roughnessFactor = clamp(mix(0.38, 0.24, fib) + 0.12 * (1.0 - seam), 0.20, 0.52);
-    if (step(0.5, vH3yAO.a) > 0.5) roughnessFactor += 0.05;
-  } else if (uMode < 4.5) {
-    float b = fract(vH3yUv.x * 11.0);
-    float gap = smoothstep(0.0, 0.13, b) * smoothstep(0.0, 0.13, 1.0 - b);
-    roughnessFactor = clamp(mix(0.30, 0.44, 1.0 - gap), 0.24, 0.50);
-  } else {
-    roughnessFactor = clamp(0.48 + 0.06 * (1.0 - vH3yUv.x), 0.40, 0.60);
-  }
+  // 조직(디스크·인대·반월상연골)은 알베도 단계에서 계산한 값을 그대로 쓿다
+  roughnessFactor = clamp(h3yTissueRough, 0.26, 0.60);
 } else if (uMode < 0.5) {
   float rm = 0.452;
   if (uQuality > 0.05 && uTexMix > 0.01) {
@@ -527,9 +544,10 @@ if (uMode > 2.5) {
       // ---------------- 요철 노멀 ----------------
       .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
 if (uMode > 2.5) {
-  // 조직(디스크·인대)은 절차적 높이장의 화면미분 범프
-  float str = (uMode < 3.5) ? 0.0013 : 0.0017;
-  vec2 dH = clamp(vec2(dFdx(h3yTissueH), dFdy(h3yTissueH)) * str, vec2(-0.12), vec2(0.12));
+  // 조직(디스크·인대)은 절차적 높이장의 화면미분 범프 — 진폭을 낮게 유지해
+  // 픽셀 단위 지글거림 없이 은은한 결만 남긴다.
+  float str = (uMode < 3.5) ? 0.00055 : 0.00070;
+  vec2 dH = clamp(vec2(dFdx(h3yTissueH), dFdy(h3yTissueH)) * str, vec2(-0.045), vec2(0.045));
   h3yNWp = h3yBump(-vViewPosition, h3yNw, dH, faceDirection);
   normal = h3yBump(-vViewPosition, normal, dH, faceDirection);
 } else {
@@ -591,7 +609,7 @@ if (uRim > 0.001) {
   float fres = pow(1.0 - ndv, 3.2);
   totalEmissiveRadiance += uRimColor * fres * uRim * mix(0.35, 1.0, h3yAoNear);
 }`);
-    material.customProgramCacheKey = () => `h3y-bone-v4-${key}`;
+    material.customProgramCacheKey = () => `h3y-bone-v41-${key}`;
   };
 
   const applyTex = () => {

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07090d">
-<title>H3Y 전신 골격 242 — 스튜디오 뷰어 v4 (디스크·관절 인대)</title>
-<link rel="stylesheet" href="style.css?v=8">
+<title>H3Y 전신 골격 242 — 스튜디오 뷰어 v4.2 (4K 무손실 · 실시간 그림자)</title>
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body class="theme-dark">
 <canvas id="c"></canvas>
@@ -69,6 +69,11 @@
     <button data-tex="0.5">질감 0.5</button>
     <button data-tex="1" class="on">질감 1.0</button>
   </div>
+
+  <div class="row tight" id="shadowRow">
+    <button id="shadowBtn" class="shadow on">그림자 ON</button>
+    <span id="shadowHint">정지 시 3.0배 · 조작 중 2.0배</span>
+  </div>
 </div>
 
 <div id="sheet" class="hidden" aria-hidden="true">
@@ -82,12 +87,14 @@
 
 <div id="about" class="hidden">
   <div class="aboutBox">
-    <h3>H3Y 전신 골격 242 — 스튜디오 뷰어 v4</h3>
+    <h3>H3Y 전신 골격 242 — 스튜디오 뷰어 v4.2</h3>
     <p>개별 뼈 242개 · 임상 모듈 71개(무릎·발목·어깨·엉덩관절 포함) · 부위별 13개 · 전신 마스터 1개를 한 링크에서 확인하는 검수용 뷰어입니다. H3Y ANATOMY STUDIO 3.0.0 (Loop 세분화 UHD) 패키지 원본을 그대로 서빙합니다.</p>
     <p><b>디스크 / 관절 인대</b> — 아래 <b>디스크</b>·<b>관절 인대</b> 버튼으로 순수 뼈 판과 조직이 들어간 판을 바로 전환합니다. 경추·흉추·요추·전척추에는 추간판 23개(C2-C3 ~ L5-S1)와 전종인대·후종인대가, 무릎에는 ACL·PCL·MCL·LCL·내외측 반월상연골·슬개건이, 발목·어깨·엉덩관절에는 각 관절 인대가 붙습니다. 버튼을 켜 둔 상태는 기억됩니다.</p>
     <p><b>스튜디오</b> — <b>다크</b>는 깊은 검정 배경에 따뜻한 키라이트·앰버 림라이트, <b>화이트</b>는 밝은 배경에 소프트박스 조명입니다.</p>
     <p><b>조작</b> — 한 손가락 회전(관성) · 두 손가락 확대+이동 · 두 번 톡 확대 · 버튼으로 정면/측면/후면/위</p>
-    <p><b>질감</b> — 끔/0.5/1.0 은 피질골 셰이더의 품질 단계입니다. 저사양 기기에서는 끔을 쓰세요.</p>
+    <p><b>질감</b> — 끔/0.5/1.0 은 피질골 셰이더의 품질 단계입니다. 저사양 기기에서는 끔을 쓰세요. v4.2 는 피질골 텍스처를 <b>4096² 무손실 WebP</b>(알베도·노멀·거칠기 3장 합계 14.6 MB)로 올려, 골원 결·다공질이 한층 촘촘합니다.</p>
+    <p><b>실시간 그림자 (v4.2)</b> — 키라이트가 2048 PCFSoft 그림자를 냅니다. 뼈·디스크·인대가 서로 그늘을 드리워 관절과 추간판의 음영이 자연스럽게 살아납니다. <b>전신 242</b> 화면은 성능 보호를 위해 그림자를 자동으로 끕니다(버튼에 <b>그림자 자동 OFF</b> 표시). 하단 <b>그림자 ON/OFF</b> 로 직접 끄고 켤 수 있고, 선택은 기억됩니다.</p>
+    <p><b>선명도 (v4.2)</b> — 조작 중에는 2.0배, 손을 멈추고 0.15초 뒤에는 <b>최대 3.0배</b> 픽셀밀도로 다시 그려 정지 화면이 더 선명합니다(부위별 등 고밀도 모델은 한 단계 낮춤).</p>
     <p class="attr">BodyParts3D, © The Database Center for Life Science, licensed under CC BY 4.0. Adaptation for H3Y Anatomy Studio, full-skeleton 3.0.0. 추간판·인대·반월상연골은 같은 모델의 뼈 표면에서 v4 로 생성했습니다.</p>
     <button id="closeAbout">닫기</button>
   </div>
@@ -95,7 +102,7 @@
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
-<script src="h3y-bone-shader.js?v=10"></script>
-<script src="app.js?v=8"></script>
+<script src="h3y-bone-shader.js?v=11"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

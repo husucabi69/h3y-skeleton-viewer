@@ -220,3 +220,27 @@ body.theme-light #tissueRow button.tissue.on { color: #163763; background: rgba(
   font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
   background: linear-gradient(180deg, #6f9bff, #3f6fe0); color: #fff; vertical-align: 2px;
 }
+
+/* ---- v4.2: 그림자 토글 ---- */
+#shadowRow { gap: 8px; align-items: center; }
+#shadowRow button.shadow {
+  flex: 0 0 auto; min-width: 92px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.045);
+  color: #cfd6e2; font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+}
+#shadowRow button.shadow.on {
+  background: linear-gradient(180deg, rgba(255,206,120,0.30), rgba(214,150,50,0.18));
+  border-color: rgba(255,200,110,0.62); color: #fff4e0;
+  box-shadow: 0 0 0 1px rgba(255,200,110,0.16) inset;
+}
+#shadowRow button.shadow.auto {
+  background: rgba(255,255,255,0.03); color: var(--txt3);
+  border-style: dashed; border-color: rgba(255,255,255,0.22);
+}
+#shadowRow #shadowHint {
+  flex: 1; min-width: 0; text-align: right; font-size: 11px; color: var(--txt3);
+  letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body.theme-light #shadowRow button.shadow { color: #35404e; background: rgba(20,40,70,0.05); border-color: rgba(20,40,70,0.16); }
+body.theme-light #shadowRow button.shadow.on { color: #7a4b09; background: rgba(255,182,64,0.24); border-color: rgba(220,150,40,0.55); }
+body.theme-light #shadowRow #shadowHint { color: #6b7787; }

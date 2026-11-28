@@ -3,6 +3,14 @@
  * ============================================================================
  *  v1 (균열망) → v2 (균열 제거) → v3 (사진 기반 Tri-planar) → v3a2 (경추·요추
  *  검은 자국 제거) → v4 (골원·골단 다공·랩 라이팅 + 디스크·인대·반월상연골)
+ *  → v4.2 (4096² 무손실 WebP 피질골 텍스처)
+ *
+ *  ── v4.2 텍스처 ─────────────────────────────────────────────────────────
+ *   bone_albedo_4k.webp / bone_normal_4k.webp / bone_roughness_4k.webp
+ *   4096×4096, WebP **lossless** (quality 100).  v4 2048 판과 같은 물리 주기
+ *   (5.4 cm 타일)를 2배 픽셀로 다시 계산하고, 4096 전용 최미세 옥타브
+ *   (약 0.53 mm)를 더했다.  3장 합계 14.6 MB — 무손실이며 픽셀 일치 검증 완료.
+ *   4K WebP 를 못 읽는 브라우저만 v4 2048 JPG 로 자동 폴백한다.
  *
  *  의장님 요청(2026-11-28 07:43): "더 리얼한 본 텍스처", "디스크도 결들이 다
  *  보이게", "ACL·PCL·MCL·LCL 같은 관절 인대도".
@@ -36,11 +44,18 @@
  *   api.setQuality(0 | 0.5 | 1);  api.setRim(0.2);  api.setTextureRoot('assets/tex');
  */
 
-const H3Y_TEX_VERSION = 'v4a2';
+// v4.2 — 4096² 무손실 WebP (lossless, 픽셀 무손실 검증: 알베도 밴드 재계산 일치).
+// 3장 합계 14.6 MB.  로드 실패 시에만 v4 2048 JPG 로 조용히 물러난다(구형 브라우저 대비).
+const H3Y_TEX_VERSION = 'v42a';
 const H3Y_TEX_FILES = {
-  albedo: 'bone_albedo.jpg?v=' + H3Y_TEX_VERSION,
-  normal: 'bone_normal.jpg?v=' + H3Y_TEX_VERSION,
-  roughness: 'bone_roughness.jpg?v=' + H3Y_TEX_VERSION
+  albedo: 'bone_albedo_4k.webp?v=' + H3Y_TEX_VERSION,
+  normal: 'bone_normal_4k.webp?v=' + H3Y_TEX_VERSION,
+  roughness: 'bone_roughness_4k.webp?v=' + H3Y_TEX_VERSION
+};
+const H3Y_TEX_FALLBACK = {
+  albedo: 'bone_albedo.jpg?v=v4a2',
+  normal: 'bone_normal.jpg?v=v4a2',
+  roughness: 'bone_roughness.jpg?v=v4a2'
 };
 
 const H3Y_NOISE_GLSL = `
@@ -308,15 +323,20 @@ function h3yLoadTextures(THREE, root) {
     return t;
   };
 
-  loader.load(base + '/' + H3Y_TEX_FILES.albedo, (t) => {
-    H3Y_TEX_STATE.albedo = setup(t, true); done();
-  }, undefined, () => { done(); });
-  loader.load(base + '/' + H3Y_TEX_FILES.normal, (t) => {
-    H3Y_TEX_STATE.normal = setup(t, false); done();
-  }, undefined, () => { done(); });
-  loader.load(base + '/' + H3Y_TEX_FILES.roughness, (t) => {
-    H3Y_TEX_STATE.roughness = setup(t, false); done();
-  }, undefined, () => { done(); });
+  const loadOne = (slot, srgb) => {
+    const doneOne = () => done();
+    loader.load(base + '/' + H3Y_TEX_FILES[slot], (t) => {
+      H3Y_TEX_STATE[slot] = setup(t, srgb); doneOne();
+    }, undefined, () => {
+      // 4K WebP 를 못 읽는 브라우저만 v4 2048 JPG 로 물러난다.
+      loader.load(base + '/' + H3Y_TEX_FALLBACK[slot], (t) => {
+        H3Y_TEX_STATE[slot] = setup(t, srgb); doneOne();
+      }, undefined, doneOne);
+    });
+  };
+  loadOne('albedo', true);
+  loadOne('normal', false);
+  loadOne('roughness', false);
 }
 
 function createH3YBoneMaterial(THREE, src, options) {
@@ -609,7 +629,7 @@ if (uRim > 0.001) {
   float fres = pow(1.0 - ndv, 3.2);
   totalEmissiveRadiance += uRimColor * fres * uRim * mix(0.35, 1.0, h3yAoNear);
 }`);
-    material.customProgramCacheKey = () => `h3y-bone-v41-${key}`;
+    material.customProgramCacheKey = () => `h3y-bone-v42-${key}`;
   };
 
   const applyTex = () => {

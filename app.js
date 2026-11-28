@@ -25,11 +25,16 @@
     loadingText.textContent = '이 브라우저에서 WebGL을 열 수 없습니다. 삼성 인터넷이나 크롬에서 다시 열어 주세요.';
     return;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+  // v4.2: 조작 중에는 낮은 DPR, 정지하면 3.0 까지 올려 선명하게 (tick 참조)
+  var dprCap = Math.min(window.devicePixelRatio || 1, 2.0);
+  renderer.setPixelRatio(dprCap);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.03;
   renderer.setClearColor(0x000000, 0);
+  // v4.2: 실시간 그림자 (전신 모드에서는 자동으로 끔)
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(34, 1, 0.01, 50);
@@ -45,6 +50,14 @@
   var ambLight = new THREE.AmbientLight(0x2b3341, 0.45);
   scene.add(ambLight);
   var keyLight = makeLight(0xfff6ea, 1.55, 0.52, 0.62);   // 중성 스튜디오 키
+  var keyDir = keyLight.position.clone().normalize();
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(2048, 2048);
+  keyLight.shadow.bias = -0.0004;
+  keyLight.shadow.normalBias = 0.0015;
+  keyLight.shadow.camera.near = 0.0005;
+  keyLight.shadow.camera.far = 100;
+  scene.add(keyLight.target);
   var rimLight = makeLight(0xffe8cf, 0.30, Math.PI - 0.45, -0.10); // 은은한 앰버 림
   var fillLight = makeLight(0xdfe6f2, 0.22, -1.30, 0.18);  // 부드러운 필
   var topLight = makeLight(0x5a4a34, 0.25, 0.0, 1.15);     // 천장 바운스
@@ -104,7 +117,8 @@
     tissue: { disc: true, lig: true },
     tissueGroup: null,
     tissueUrls: [],
-    tissueSeq: 0
+    tissueSeq: 0,
+    shadow: true
   };
 
   try {
@@ -114,6 +128,92 @@
       S.tissue.lig = ts.lig !== false;
     }
   } catch (e) {}
+  try {
+    var sh = localStorage.getItem('h3y-skel-shadow');
+    if (sh === '0') S.shadow = false;
+  } catch (e) {}
+
+  // ---------- v4.2 실시간 그림자 ----------
+  // 키라이트 한 개만 그림자를 낸다(2048 PCFSoft). 구도에 따라 그림자 카메라를
+  // 현재 모델의 바운딩 구에 맞추어 재설정하므로, 논문 크기(수 mm~전신)와 상관없이
+  // 그림자가 뭉개지거나 잘리지 않는다.
+  var shadowMapSize = 0;
+
+  function shadowAllowed() {
+    // 전신(242뼈 전체)은 자동으로 끈다 — 성능 안전장치.
+    if (S.current && S.current.kind === 'master') return false;
+    return !!S.shadow;
+  }
+
+  function setShadowMapSize(n) {
+    if (n === shadowMapSize) return;
+    shadowMapSize = n;
+    if (keyLight.shadow.map) {
+      keyLight.shadow.map.dispose();
+      keyLight.shadow.map = null;
+    }
+    keyLight.shadow.mapSize.set(n, n);
+  }
+
+  function fitShadowCamera() {
+    holder.updateMatrixWorld(true);
+    var box = new THREE.Box3().setFromObject(holder);
+    if (box.isEmpty()) return;
+    var bs = new THREE.Sphere();
+    box.getBoundingSphere(bs);
+    var r = Math.max(bs.radius, 1e-3);
+    // 모델은 원점에 있지 않을 수 있다(초점(focus)이 있는 모듈은 실제 해부 좌표에
+    // 그대로 앉아 있다). 그림자 카메라는 반드시 "모델 중심"을 보게 해야 한다.
+    var c = box.getCenter(new THREE.Vector3());
+    var dist = r * 2.6;
+    keyLight.target.position.copy(c);
+    keyLight.target.updateMatrixWorld();
+    keyLight.position.copy(c).addScaledVector(keyDir, dist);
+    keyLight.updateMatrixWorld();
+    var cam = keyLight.shadow.camera;
+    cam.left = -r * 1.05; cam.right = r * 1.05;
+    cam.top = r * 1.05; cam.bottom = -r * 1.05;
+    cam.near = Math.max(dist - r * 1.7, r * 0.02);
+    cam.far = dist + r * 1.7;
+    cam.updateProjectionMatrix();
+    // 여드름(acne)·피터패닝 — 모델 반지름에 비례해 조정한다.
+    // 2048 맵 + 반지름 r 이면 텍셀 한 칸 ≈ 2r/2048 이므로 그 2~3배를 노멀 바이어스로.
+    keyLight.shadow.bias = -0.0004;
+    keyLight.shadow.normalBias = Math.min(Math.max(r * 0.012, 0.0005), 0.02);
+    keyLight.shadow.needsUpdate = true;
+  }
+
+  function applyShadow() {
+    var on = shadowAllowed();
+    keyLight.castShadow = on;
+    if (on) {
+      setShadowMapSize(dprTris > 450000 ? 1024 : 2048);
+      fitShadowCamera();
+    }
+    updateShadowUI();
+  }
+
+  function updateShadowUI() {
+    var btn = $('shadowBtn');
+    if (!btn) return;
+    var master = !!(S.current && S.current.kind === 'master');
+    var on = shadowAllowed();
+    btn.classList.toggle('on', on);
+    btn.classList.toggle('auto', master);
+    btn.textContent = master ? '그림자 자동 OFF'
+      : (S.shadow ? '그림자 ON' : '그림자 OFF');
+    var hint = $('shadowHint');
+    if (hint) {
+      hint.textContent = master ? '전신 242는 성능 보호로 자동 꺼짐'
+        : (S.shadow ? '정지 시 3.0배 · 조작 중 2.0배' : '그림자 꺼짐 · 정지 시 3.0배 렌더');
+    }
+  }
+
+  function setShadow(on) {
+    S.shadow = !!on;
+    try { localStorage.setItem('h3y-skel-shadow', S.shadow ? '1' : '0'); } catch (e) {}
+    applyShadow();
+  }
 
   // ---------- 카메라 ----------
   var FRONT_YAW = Math.PI + 0.12;
@@ -299,6 +399,7 @@
     var seq = ++S.loadSeq;
     S.current = item;
     S.pickedBone = null;
+    dprIdle = false;
     vYaw = 0; vPitch = 0;
     window.clearTimeout(pressTimer);
     var urls = (item.urls && item.urls.length) ? item.urls : [item.url];
@@ -317,6 +418,8 @@
       fit(!opts.smooth);
       setTex(S.tex);
       applyPixelBudget(tris);
+      applyShadow();
+      notifyMotion();          // 150 ms 뒤 정지 프레임은 DPR 3.0
       showLoading(false);
       nameEl.textContent = item.ko;
       sub2El.textContent = metaLine(item);
@@ -379,6 +482,8 @@
         tris += ((g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3);
       }
       o.userData.slug = pickSlug(o) || (item && item.slug) || '';
+      o.castShadow = true;
+      o.receiveShadow = true;
       pickables.push(o);
     });
     return tris;
@@ -466,6 +571,7 @@
       if (seq !== S.tissueSeq) return;
       holder.add(tg);
       applyShaderToHolder();
+      applyShadow();
       statusEl.textContent = (S.idx + 1) + ' / ' + S.items.length;
     };
     urls.forEach(function (u) {
@@ -699,12 +805,39 @@
     if (!$('sheet').classList.contains('hidden')) buildList();
   }
 
-  // 고밀도 항목(부위별 두개골·흉곽 등)에서 기기 발열과 프레임 저하를 막기 위해 픽셀 예산만 낮춘다.
-  var dprCap = 2.0;
-  function applyPixelBudget(tris) {
-    dprCap = tris > 900000 ? 1.35 : (tris > 450000 ? 1.7 : 2.0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+  // v4.2 — 조작 중 DPR 2.0, 조작이 멈춘 뒤 150 ms 가 지나면 3.0 으로 올벼
+  // 정지 프레임을 선명하게 그린다. 고밀도 모델(부위별 등)은 기기 발열·프레임
+  // 저하를 막기 위해 단계를 하나 낮춰 쓴다.
+  var dprTris = 0;
+  var dprIdle = false;
+  var dprIdleTimer = 0;
+
+  function dprFor(idle) {
+    var cap = dprTris > 900000 ? (idle ? 2.0 : 1.35)
+            : dprTris > 450000 ? (idle ? 2.5 : 1.7)
+            : (idle ? 3.0 : 2.0);
+    return Math.min(window.devicePixelRatio || 1, cap);
+  }
+
+  function setDpr(ratio) {
+    if (Math.abs(ratio - dprCap) < 1e-3) return;
+    dprCap = ratio;
+    renderer.setPixelRatio(ratio);
     renderer.setSize(window.innerWidth, window.innerHeight, false);
+  }
+
+  function applyPixelBudget(tris) {
+    if (tris) dprTris = tris;
+    setDpr(dprFor(dprIdle));
+  }
+
+  function notifyMotion() {
+    window.clearTimeout(dprIdleTimer);
+    if (dprIdle) { dprIdle = false; applyPixelBudget(); }
+    dprIdleTimer = window.setTimeout(function () {
+      dprIdle = true;
+      applyPixelBudget();
+    }, 150);
   }
 
   function updateHash(item) {
@@ -879,6 +1012,7 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-tissue]'), function (b) {
     b.addEventListener('click', function () { setTissue(b.dataset.tissue, !S.tissue[b.dataset.tissue]); });
   });
+  if ($('shadowBtn')) $('shadowBtn').addEventListener('click', function () { setShadow(!S.shadow); });
   $('prev').addEventListener('click', function () { step(-1); });
   $('next').addEventListener('click', function () { step(1); });
   $('fitBtn').addEventListener('click', function () { fit(false); });
@@ -911,13 +1045,26 @@
   window.addEventListener('resize', resize);
   function resize() {
     var w = window.innerWidth, h = window.innerHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+    renderer.setPixelRatio(dprCap);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
   resize();
-  window.__h3y = { renderer: renderer, scene: scene, camera: camera, S: S, THREE: THREE, camState: camState, holder: holder };
+  window.__h3y = {
+    renderer: renderer, scene: scene, camera: camera, S: S, THREE: THREE,
+    camState: camState, holder: holder, keyLight: keyLight,
+    applyShadow: applyShadow, setShadow: setShadow, fitShadowCamera: fitShadowCamera,
+    shadowAllowed: shadowAllowed, notifyMotion: notifyMotion,
+    // 캡처 하니스 전용: DPR 을 즉시 고정하고 한 프레임 그린다.
+    forceDpr: function (r) {
+      dprIdle = true;
+      dprTris = 0;
+      setDpr(Math.min(window.devicePixelRatio || 1, r));
+      renderer.render(scene, camera);
+      return { ratio: renderer.getPixelRatio(), shadow: keyLight.castShadow };
+    }
+  };
 
   // ---------- 렌더 루프 ----------
   function tick() {
@@ -942,6 +1089,13 @@
       camState.target.z + camState.dist * cp * cy
     );
     camera.lookAt(camState.target);
+    var moving = ptrs.size > 0
+      || Math.abs(vYaw) > 1e-4 || Math.abs(vPitch) > 1e-4
+      || Math.abs(camState.tYaw - camState.yaw) > 2e-4
+      || Math.abs(camState.tPitch - camState.pitch) > 2e-4
+      || Math.abs(camState.tDist - camState.dist) > camState.dist * 2e-4
+      || camState.target.distanceToSquared(camState.tTarget) > Math.pow(camState.dist * 2e-4, 2);
+    if (moving) notifyMotion();
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }

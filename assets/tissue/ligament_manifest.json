@@ -1,0 +1,203 @@
+{
+ "version": "4.0.0-ligaments",
+ "sets": {
+  "knee_R": {
+   "slug": "knee_R",
+   "url": "assets/tissue/ligaments/knee_R.glb",
+   "parts": [
+    "knee_R_ACL",
+    "knee_R_PCL",
+    "knee_R_MCL",
+    "knee_R_LCL",
+    "knee_R_PT",
+    "knee_R_MM",
+    "knee_R_LM"
+   ],
+   "tris": 3288,
+   "bytes": 99576
+  },
+  "knee_L": {
+   "slug": "knee_L",
+   "url": "assets/tissue/ligaments/knee_L.glb",
+   "parts": [
+    "knee_L_ACL",
+    "knee_L_PCL",
+    "knee_L_MCL",
+    "knee_L_LCL",
+    "knee_L_PT",
+    "knee_L_MM",
+    "knee_L_LM"
+   ],
+   "tris": 3288,
+   "bytes": 99580
+  },
+  "knee_both": {
+   "slug": "knee_both",
+   "url": "assets/tissue/ligaments/knee_both.glb",
+   "parts": [
+    "knee_R_ACL",
+    "knee_R_PCL",
+    "knee_R_MCL",
+    "knee_R_LCL",
+    "knee_R_PT",
+    "knee_R_MM",
+    "knee_R_LM",
+    "knee_L_ACL",
+    "knee_L_PCL",
+    "knee_L_MCL",
+    "knee_L_LCL",
+    "knee_L_PT",
+    "knee_L_MM",
+    "knee_L_LM"
+   ],
+   "tris": 6576,
+   "bytes": 198080
+  },
+  "ankle_R": {
+   "slug": "ankle_R",
+   "url": "assets/tissue/ligaments/ankle_R.glb",
+   "parts": [
+    "ankle_R_ATFL",
+    "ankle_R_CFL",
+    "ankle_R_DELT"
+   ],
+   "tris": 880,
+   "bytes": 28276
+  },
+  "shoulder_R": {
+   "slug": "shoulder_R",
+   "url": "assets/tissue/ligaments/shoulder_R.glb",
+   "parts": [
+    "shoulder_R_AC",
+    "shoulder_R_CA",
+    "shoulder_R_CH"
+   ],
+   "tris": 860,
+   "bytes": 27700
+  },
+  "hip_R": {
+   "slug": "hip_R",
+   "url": "assets/tissue/ligaments/hip_R.glb",
+   "parts": [
+    "hip_R_ILIO",
+    "hip_R_PUBO",
+    "hip_R_ISCHIO"
+   ],
+   "tris": 980,
+   "bytes": 31040
+  },
+  "ankle_L": {
+   "slug": "ankle_L",
+   "url": "assets/tissue/ligaments/ankle_L.glb",
+   "parts": [
+    "ankle_L_ATFL",
+    "ankle_L_CFL",
+    "ankle_L_DELT"
+   ],
+   "tris": 880,
+   "bytes": 28280
+  },
+  "shoulder_L": {
+   "slug": "shoulder_L",
+   "url": "assets/tissue/ligaments/shoulder_L.glb",
+   "parts": [
+    "shoulder_L_AC",
+    "shoulder_L_CA",
+    "shoulder_L_CH"
+   ],
+   "tris": 860,
+   "bytes": 27708
+  },
+  "hip_L": {
+   "slug": "hip_L",
+   "url": "assets/tissue/ligaments/hip_L.glb",
+   "parts": [
+    "hip_L_ILIO",
+    "hip_L_PUBO",
+    "hip_L_ISCHIO"
+   ],
+   "tris": 980,
+   "bytes": 31048
+  },
+  "joints_all": {
+   "slug": "joints_all",
+   "url": "assets/tissue/ligaments/joints_all.glb",
+   "parts": [
+    "j_ANR_ATFL",
+    "j_ANR_CFL",
+    "j_ANR_DELT",
+    "j_SHR_AC",
+    "j_SHR_CA",
+    "j_SHR_CH",
+    "j_HIR_ILIO",
+    "j_HIR_PUBO",
+    "j_HIR_ISCHIO",
+    "j_KNR_ACL",
+    "j_KNR_PCL",
+    "j_KNR_MCL",
+    "j_KNR_LCL",
+    "j_KNR_PT",
+    "j_KNR_MM",
+    "j_KNR_LM",
+    "j_ANL_ATFL",
+    "j_ANL_CFL",
+    "j_ANL_DELT",
+    "j_SHL_AC",
+    "j_SHL_CA",
+    "j_SHL_CH",
+    "j_HIL_ILIO",
+    "j_HIL_PUBO",
+    "j_HIL_ISCHIO",
+    "j_KNL_ACL",
+    "j_KNL_PCL",
+    "j_KNL_MCL",
+    "j_KNL_LCL",
+    "j_KNL_PT",
+    "j_KNL_MM",
+    "j_KNL_LM"
+   ],
+   "tris": 12016,
+   "bytes": 367340
+  },
+  "spine_c": {
+   "slug": "spine_lig_c",
+   "url": "assets/tissue/ligaments/spine_lig_c.glb",
+   "parts": [
+    "ALL_c",
+    "PLL_c"
+   ],
+   "tris": 328,
+   "bytes": 11828
+  },
+  "spine_t": {
+   "slug": "spine_lig_t",
+   "url": "assets/tissue/ligaments/spine_lig_t.glb",
+   "parts": [
+    "ALL_t",
+    "PLL_t"
+   ],
+   "tris": 720,
+   "bytes": 22820
+  },
+  "spine_l": {
+   "slug": "spine_lig_l",
+   "url": "assets/tissue/ligaments/spine_lig_l.glb",
+   "parts": [
+    "ALL_l",
+    "PLL_l"
+   ],
+   "tris": 384,
+   "bytes": 13392
+  },
+  "spine_all": {
+   "slug": "spine_lig_all",
+   "url": "assets/tissue/ligaments/spine_lig_all.glb",
+   "parts": [
+    "ALL_all",
+    "PLL_all"
+   ],
+   "tris": 1336,
+   "bytes": 40080
+  }
+ }
+}

@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07090d">
-<title>H3Y 전신 골격 242 — 스튜디오 뷰어</title>
-<link rel="stylesheet" href="style.css?v=5">
+<title>H3Y 전신 골격 242 — 스튜디오 뷰어 v4 (디스크·관절 인대)</title>
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body class="theme-dark">
 <canvas id="c"></canvas>
 
 <div id="top">
   <div class="tleft">
-    <div id="title">H3Y 전신 골격 <b>242</b></div>
-    <div id="sub">개별 뼈 · 임상 모듈 · 부위별 · 전신</div>
+    <div id="title">H3Y 전신 골격 <b>242</b> <span class="v4">v4</span></div>
+    <div id="sub">개별 뼈 · 임상 모듈 · 부위별 · 전신 · 디스크 · 관절 인대</div>
   </div>
   <div class="tright">
     <div id="status"></div>
@@ -31,7 +31,7 @@
 <div id="panel">
   <div class="tabs" id="tabs">
     <button data-mode="bones" class="on">개별 뼈 <i>242</i></button>
-    <button data-mode="modules">임상 모듈 <i>62</i></button>
+    <button data-mode="modules">임상 모듈 <i>71</i></button>
     <button data-mode="regions">부위별 <i>13</i></button>
     <button data-mode="master">전신</button>
   </div>
@@ -59,6 +59,11 @@
     <button id="fitBtn" class="view">맞춤</button>
   </div>
 
+  <div class="row tight" id="tissueRow">
+    <button data-tissue="disc" id="discBtn" class="tissue on">디스크 ON</button>
+    <button data-tissue="lig" id="ligBtn" class="tissue on">관절 인대 ON</button>
+  </div>
+
   <div class="row tight" id="texRow">
     <button data-tex="0">질감 끔</button>
     <button data-tex="0.5">질감 0.5</button>
@@ -77,19 +82,20 @@
 
 <div id="about" class="hidden">
   <div class="aboutBox">
-    <h3>H3Y 전신 골격 242 — 스튜디오 뷰어</h3>
-    <p>개별 뼈 242개 · 임상 모듈 62개 · 부위별 13개 · 전신(경량) 마스터 1개를 한 링크에서 확인하는 검수용 뷰어입니다. H3Y ANATOMY STUDIO 3.0.0 (Loop 세분화 UHD) 패키지 원본을 그대로 서빙합니다.</p>
-    <p><b>스튜디오</b> — <b>다크</b>는 깊은 검정 배경에 따뜻한 키라이트·앰버 림라이트(두판상근 도판의 블랙 테마), <b>화이트</b>는 밝은 배경에 소프트박스 조명입니다. 우측 상단 버튼으로 바꿉니다.</p>
+    <h3>H3Y 전신 골격 242 — 스튜디오 뷰어 v4</h3>
+    <p>개별 뼈 242개 · 임상 모듈 71개(무릎·발목·어깨·엉덩관절 포함) · 부위별 13개 · 전신 마스터 1개를 한 링크에서 확인하는 검수용 뷰어입니다. H3Y ANATOMY STUDIO 3.0.0 (Loop 세분화 UHD) 패키지 원본을 그대로 서빙합니다.</p>
+    <p><b>디스크 / 관절 인대</b> — 아래 <b>디스크</b>·<b>관절 인대</b> 버튼으로 순수 뼈 판과 조직이 들어간 판을 바로 전환합니다. 경추·흉추·요추·전척추에는 추간판 23개(C2-C3 ~ L5-S1)와 전종인대·후종인대가, 무릎에는 ACL·PCL·MCL·LCL·내외측 반월상연골·슬개건이, 발목·어깨·엉덩관절에는 각 관절 인대가 붙습니다. 버튼을 켜 둔 상태는 기억됩니다.</p>
+    <p><b>스튜디오</b> — <b>다크</b>는 깊은 검정 배경에 따뜻한 키라이트·앰버 림라이트, <b>화이트</b>는 밝은 배경에 소프트박스 조명입니다.</p>
     <p><b>조작</b> — 한 손가락 회전(관성) · 두 손가락 확대+이동 · 두 번 톡 확대 · 버튼으로 정면/측면/후면/위</p>
     <p><b>질감</b> — 끔/0.5/1.0 은 피질골 셰이더의 품질 단계입니다. 저사양 기기에서는 끔을 쓰세요.</p>
-    <p class="attr">BodyParts3D, © The Database Center for Life Science, licensed under CC BY 4.0. Adaptation for H3Y Anatomy Studio, full-skeleton 3.0.0.</p>
+    <p class="attr">BodyParts3D, © The Database Center for Life Science, licensed under CC BY 4.0. Adaptation for H3Y Anatomy Studio, full-skeleton 3.0.0. 추간판·인대·반월상연골은 같은 모델의 뼈 표면에서 v4 로 생성했습니다.</p>
     <button id="closeAbout">닫기</button>
   </div>
 </div>
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
-<script src="h3y-bone-shader.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="h3y-bone-shader.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

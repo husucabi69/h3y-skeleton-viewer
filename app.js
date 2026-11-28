@@ -100,8 +100,20 @@
     shaderApi: null,
     shaderBroken: false,
     current: null,
-    pickedBone: null
+    pickedBone: null,
+    tissue: { disc: true, lig: true },
+    tissueGroup: null,
+    tissueUrls: [],
+    tissueSeq: 0
   };
+
+  try {
+    var ts = JSON.parse(localStorage.getItem('h3y-skel-tissue') || 'null');
+    if (ts && typeof ts === 'object') {
+      S.tissue.disc = ts.disc !== false;
+      S.tissue.lig = ts.lig !== false;
+    }
+  } catch (e) {}
 
   // ---------- 카메라 ----------
   var FRONT_YAW = Math.PI + 0.12;
@@ -121,6 +133,18 @@
   }
 
   function fit(instant) {
+    if (S.current && S.current.focus) {
+      var f = S.current.focus;
+      camState.tTarget.set(f.target[0], f.target[1], f.target[2]);
+      camState.tDist = f.dist;
+      minDist = f.dist * 0.12; maxDist = f.dist * 6;
+      if (instant) { camState.target.copy(camState.tTarget); camState.dist = f.dist; }
+      holder.position.set(0, 0, 0);
+      camera.near = Math.max(f.dist * 0.004, 0.0004);
+      camera.far = f.dist * 60;
+      camera.updateProjectionMatrix();
+      return;
+    }
     holder.updateMatrixWorld(true);
     var box = new THREE.Box3().setFromObject(holder);
     if (box.isEmpty()) return;
@@ -245,6 +269,7 @@
 
   function disposeHolder() {
     S.shaderApi = null;
+    disposeTissue();
     for (var i = holder.children.length - 1; i >= 0; i--) {
       var root = holder.children[i];
       root.traverse(function (o) {
@@ -276,59 +301,222 @@
     S.pickedBone = null;
     vYaw = 0; vPitch = 0;
     window.clearTimeout(pressTimer);
-    showLoading(item.bytes > 12000000, '불러오는 중…');
+    var urls = (item.urls && item.urls.length) ? item.urls : [item.url];
+    showLoading(item.bytes > 12000000 || urls.length > 2, '불러오는 중…');
     statusEl.textContent = '불러오는 중…';
     nameEl.textContent = item.ko;
     sub2El.textContent = metaLine(item);
     disposeHolder();
 
-    loader.load(item.url,
-      function (gltf) {
-        if (seq !== S.loadSeq) return;
-        var root = gltf.scene;
-        var tris = 0;
-        root.traverse(function (o) {
-          if (!o.isMesh) return;
-          var g = o.geometry;
-          if (g) {
-            if (!g.attributes.normal) g.computeVertexNormals();
-            // 피질골 셰이더는 COLOR_0(구운 차폐)을 읽는다. 없으면 흰색으로 채워 회색 판이 되지 않게 한다.
-            if (g.getAttribute && !g.getAttribute('color') && g.attributes.position) {
-              var n = g.attributes.position.count;
-              var arr = new Float32Array(n * 4);
-              for (var q = 0; q < arr.length; q++) arr[q] = 1;
-              g.setAttribute('color', new THREE.BufferAttribute(arr, 4));
-            }
-            tris += ((g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3);
+    var root = new THREE.Group();
+    root.name = 'h3y_bone_root';
+    var pending = urls.length, tris = 0, failed = false;
+    var finish = function () {
+      if (seq !== S.loadSeq || failed) return;
+      holder.add(root);
+      fit(!opts.smooth);
+      setTex(S.tex);
+      applyPixelBudget(tris);
+      showLoading(false);
+      nameEl.textContent = item.ko;
+      sub2El.textContent = metaLine(item);
+      statusEl.textContent = (S.idx + 1) + ' / ' + S.items.length;
+      updateHash(item);
+      loadTissue();
+    };
+    urls.forEach(function (u) {
+      loader.load(u,
+        function (gltf) {
+          if (seq !== S.loadSeq) return;
+          tris += prepareMeshes(gltf.scene, false, item);
+          root.add(gltf.scene);
+          if (--pending === 0) finish();
+        },
+        function (xhr) {
+          if (seq !== S.loadSeq) return;
+          if (xhr.total) {
+            statusEl.textContent = Math.min(100, Math.round(xhr.loaded / xhr.total * 100)) + '%';
+          } else {
+            statusEl.textContent = (xhr.loaded / 1048576).toFixed(1) + ' MB';
           }
-          o.userData.slug = pickSlug(o) || item.slug || '';
-          pickables.push(o);
-        });
-        holder.add(root);
-        fit(!opts.smooth);
-        setTex(S.tex);
-        applyPixelBudget(tris);
-        showLoading(false);
-        nameEl.textContent = item.ko;
-        sub2El.textContent = metaLine(item);
-        statusEl.textContent = (S.idx + 1) + ' / ' + S.items.length;
-        updateHash(item);
-      },
-      function (xhr) {
-        if (seq !== S.loadSeq) return;
-        if (xhr.total) {
-          statusEl.textContent = Math.min(100, Math.round(xhr.loaded / xhr.total * 100)) + '%';
-        } else {
-          statusEl.textContent = (xhr.loaded / 1048576).toFixed(1) + ' MB';
+        },
+        function () {
+          if (seq !== S.loadSeq) return;
+          failed = true;
+          showLoading(false);
+          statusEl.textContent = '불러오기 실패';
+          sub2El.textContent = '파일을 받지 못했습니다. 잠시 뒤 다시 눌러 주세요.';
         }
-      },
-      function () {
-        if (seq !== S.loadSeq) return;
-        showLoading(false);
-        statusEl.textContent = '불러오기 실패';
-        sub2El.textContent = '파일을 받지 못했습니다. 잠시 뒤 다시 눌러 주세요.';
+      );
+    });
+  }
+
+  // ---------- 메시 준비 (노멀·COLOR_0·UV·골단 표시) ----------
+  function prepareMeshes(root, isTissue, item) {
+    var tris = 0;
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      var g = o.geometry;
+      if (g) {
+        if (!g.attributes.normal) g.computeVertexNormals();
+        var hasColor = g.getAttribute && g.getAttribute('color');
+        if (!hasColor && g.attributes.position) {
+          var n = g.attributes.position.count;
+          var arr = new Float32Array(n * 4);
+          for (var q = 0; q < arr.length; q++) arr[q] = 1;
+          g.setAttribute('color', new THREE.BufferAttribute(arr, 4));
+        }
+        if (g.attributes.uv && !g.getAttribute('h3yUv')) {
+          var n2 = g.attributes.uv.count;
+          var a2 = new Float32Array(n2 * 2);
+          for (var r = 0; r < n2; r++) {
+            a2[r * 2] = g.attributes.uv.getX(r);
+            a2[r * 2 + 1] = g.attributes.uv.getY(r);
+          }
+          g.setAttribute('h3yUv', new THREE.BufferAttribute(a2, 2));
+        }
+        if (!isTissue) bakeEpiphysis(g);
+        tris += ((g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3);
       }
-    );
+      o.userData.slug = pickSlug(o) || (item && item.slug) || '';
+      pickables.push(o);
+    });
+    return tris;
+  }
+
+  // 골단(epiphysis) 표시를 COLOR_0.a 에 굽는다 — 장축 양끝 16 %.
+  // 셰이더 v4 가 이 값을 다공질·거친 면·미세 투과에 쓴다.
+  function bakeEpiphysis(g) {
+    var col = g.getAttribute && g.getAttribute('color');
+    var pos = g.attributes && g.attributes.position;
+    if (!col || !pos || !col.normalized && col.itemSize !== 4) return;
+    if (col.itemSize !== 4) return;
+    var minv = [Infinity, Infinity, Infinity], maxv = [-Infinity, -Infinity, -Infinity];
+    var i, j;
+    var arr = pos.array;
+    for (i = 0; i < pos.count; i++) {
+      for (j = 0; j < 3; j++) {
+        var v = arr[i * 3 + j];
+        if (v < minv[j]) minv[j] = v;
+        if (v > maxv[j]) maxv[j] = v;
+      }
+    }
+    var ax = 0, best = -1;
+    for (j = 0; j < 3; j++) {
+      if (maxv[j] - minv[j] > best) { best = maxv[j] - minv[j]; ax = j; }
+    }
+    var span = Math.max(maxv[ax] - minv[ax], 1e-6);
+    var ca = col.array, step = col.itemSize;
+    var unit = col.normalized ? 255 : 1;
+    for (i = 0; i < pos.count; i++) {
+      var t = (arr[i * 3 + ax] - minv[ax]) / span;
+      var d = Math.min(t, 1 - t);
+      var e = 1 - Math.min(Math.max((d - 0.04) / 0.10, 0), 1);   // 0.04 이내 = 골단
+      ca[i * step + 3] = e * unit;
+    }
+    col.needsUpdate = true;
+  }
+
+  // ---------- 조직 레이어 (디스크 · 관절 인대) ----------
+  function tissueOf(item) {
+    if (!item) return null;
+    var t = item.tissue;
+    if (!t) return null;
+    var disc = (t.disc || []).slice();
+    var lig = (t.lig || []).slice();
+    if (!disc.length && !lig.length) return null;
+    return { disc: disc, lig: lig };
+  }
+
+  function disposeTissue() {
+    S.tissueSeq++;
+    if (!S.tissueGroup) { S.tissueUrls = []; return; }
+    var tg = S.tissueGroup;
+    tg.traverse(function (o) {
+      if (o.isMesh) {
+        if (o.geometry) o.geometry.dispose();
+        var mat = o.material;
+        var arr = Array.isArray(mat) ? mat : [mat];
+        for (var k = 0; k < arr.length; k++) {
+          if (arr[k] && arr[k].dispose) arr[k].dispose();
+        }
+      }
+    });
+    holder.remove(tg);
+    S.tissueGroup = null;
+    S.tissueUrls = [];
+  }
+
+  function loadTissue() {
+    disposeTissue();
+    var t = tissueOf(S.current);
+    updateTissueUI();
+    if (!t) return;
+    var urls = [];
+    if (S.tissue.disc) urls = urls.concat(t.disc);
+    if (S.tissue.lig) urls = urls.concat(t.lig);
+    if (!urls.length) return;
+    var seq = ++S.tissueSeq;
+    var tg = new THREE.Group();
+    tg.name = 'h3y_tissue';
+    S.tissueGroup = tg;
+    S.tissueUrls = urls;
+    var pending = urls.length;
+    var done = function () {
+      if (seq !== S.tissueSeq) return;
+      holder.add(tg);
+      applyShaderToHolder();
+      statusEl.textContent = (S.idx + 1) + ' / ' + S.items.length;
+    };
+    urls.forEach(function (u) {
+      loader.load(u, function (gltf) {
+        if (seq !== S.tissueSeq) return;
+        prepareMeshes(gltf.scene, true, null);
+        tg.add(gltf.scene);
+        if (--pending === 0) done();
+      }, undefined, function () {
+        if (seq !== S.tissueSeq) return;
+        if (--pending === 0) done();
+      });
+    });
+  }
+
+  function applyShaderToHolder() {
+    if (S.shaderBroken || !window.H3YBoneShader) { paintFallback(S.tex); return; }
+    if (!(S.tex > 0.01)) { paintFallback(S.tex); return; }
+    try {
+      S.shaderApi = window.H3YBoneShader.applyH3YBoneShader(THREE, holder, { quality: S.tex, detail: S.tex });
+      if (S.shaderApi && S.shaderApi.setRim) S.shaderApi.setRim((THEMES[themeName] || THEMES.dark).shaderRim);
+    } catch (e) {
+      S.shaderBroken = true;
+      paintFallback(S.tex);
+    }
+  }
+
+  function setTissue(kind, on) {
+    S.tissue[kind] = !!on;
+    try { localStorage.setItem('h3y-skel-tissue', JSON.stringify(S.tissue)); } catch (e) {}
+    loadTissue();
+  }
+
+  function updateTissueUI() {
+    var t = tissueOf(S.current);
+    var row = $('tissueRow');
+    if (!row) return;
+    row.style.display = t ? 'flex' : 'none';
+    var dBtn = $('discBtn'), lBtn = $('ligBtn');
+    if (dBtn) {
+      var hasD = !!(t && t.disc.length);
+      dBtn.style.display = hasD ? '' : 'none';
+      dBtn.classList.toggle('on', hasD && S.tissue.disc);
+      dBtn.textContent = '디스크 ' + (S.tissue.disc ? 'ON' : 'OFF');
+    }
+    if (lBtn) {
+      var hasL = !!(t && t.lig.length);
+      lBtn.style.display = hasL ? '' : 'none';
+      lBtn.classList.toggle('on', hasL && S.tissue.lig);
+      lBtn.textContent = '관절 인대 ' + (S.tissue.lig ? 'ON' : 'OFF');
+    }
   }
 
   function metaLine(item) {
@@ -350,23 +538,24 @@
     if (S.mode === 'bones') {
       arr = d.bones.map(function (b) {
         return { kind: 'bone', slug: b.slug, ko: b.ko, en: b.en, region: b.region, side: b.side,
-                 fma: b.fma, tris: b.tris, bytes: b.bytes, url: b.url };
+                 fma: b.fma, tris: b.tris, bytes: b.bytes, url: b.url, tissue: b.tissue || null };
       });
       if (S.region !== 'all') arr = arr.filter(function (b) { return b.region === S.region; });
     } else if (S.mode === 'modules') {
       arr = d.modules.map(function (m) {
         return { kind: 'module', slug: m.slug, ko: m.ko, en: m.en, bones: m.bones,
-                 tris: m.tris, bytes: m.bytes, url: m.url };
+                 tris: m.tris, bytes: m.bytes, url: m.url, urls: m.urls || null,
+                 tissue: m.tissue || null, focus: m.focus || null };
       });
     } else if (S.mode === 'regions') {
       arr = d.regions.map(function (r) {
         return { kind: 'region', slug: r.key, key: r.key, ko: r.ko, en: r.en, bones: r.bones,
-                 tris: r.tris, bytes: r.bytes, url: r.url };
+                 tris: r.tris, bytes: r.bytes, url: r.url, tissue: r.tissue || null };
       });
     } else {
       arr = d.masters.map(function (m) {
         return { kind: 'master', slug: m.slug, ko: m.ko, en: m.en, bones: m.bones,
-                 tris: m.tris, bytes: m.bytes, url: m.url };
+                 tris: m.tris, bytes: m.bytes, url: m.url, tissue: m.tissue || null };
       });
     }
     var q = (S.mode === 'master' ? '' : S.q).trim().toLowerCase();
@@ -687,6 +876,9 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
     b.addEventListener('click', function () { applyTheme(b.dataset.theme); });
   });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tissue]'), function (b) {
+    b.addEventListener('click', function () { setTissue(b.dataset.tissue, !S.tissue[b.dataset.tissue]); });
+  });
   $('prev').addEventListener('click', function () { step(-1); });
   $('next').addEventListener('click', function () { step(1); });
   $('fitBtn').addEventListener('click', function () { fit(false); });
@@ -725,7 +917,7 @@
     camera.updateProjectionMatrix();
   }
   resize();
-  window.__h3y = { renderer: renderer, scene: scene, camera: camera, S: S, THREE: THREE, camState: camState };
+  window.__h3y = { renderer: renderer, scene: scene, camera: camera, S: S, THREE: THREE, camState: camState, holder: holder };
 
   // ---------- 렌더 루프 ----------
   function tick() {

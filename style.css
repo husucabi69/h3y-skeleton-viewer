@@ -199,3 +199,24 @@ button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: tra
   #panel { left: 50%; transform: translateX(-50%); width: 640px; }
   #list .it { font-size: 14px; }
 }
+
+/* ---- v4: 조직 토글 ---- */
+#tissueRow { gap: 8px; }
+#tissueRow button.tissue {
+  flex: 1 1 0; font-weight: 600; letter-spacing: 0.01em;
+  border: 1px solid rgba(255,255,255,0.16); border-radius: 10px;
+  background: rgba(255,255,255,0.045); color: #cfd6e2;
+  padding: 9px 6px; font-size: 13px;
+}
+#tissueRow button.tissue.on {
+  background: linear-gradient(180deg, rgba(96,148,255,0.30), rgba(58,108,220,0.20));
+  border-color: rgba(120,168,255,0.62); color: #eaf1ff;
+  box-shadow: 0 0 0 1px rgba(120,168,255,0.18) inset;
+}
+body.theme-light #tissueRow button.tissue { color: #35404e; background: rgba(20,40,70,0.05); border-color: rgba(20,40,70,0.16); }
+body.theme-light #tissueRow button.tissue.on { color: #163763; background: rgba(72,128,240,0.16); border-color: rgba(50,110,240,0.5); }
+#title .v4 {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 7px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #6f9bff, #3f6fe0); color: #fff; vertical-align: 2px;
+}
